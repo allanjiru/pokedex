@@ -1,0 +1,3 @@
+import { Component, Input } from '@angular/core';
+@Component({ selector: 'app-pagination', standalone: true, template: `<div class="pagination"><span class="pagination__info">Showing 1 to 10 of {{ total }} entries</span><div class="pagination__controls"><button class="pagination__button" disabled>Previous</button><button class="pagination__page-number pagination__page-number--active">1</button><button class="pagination__page-number">2</button><button class="pagination__page-number">3</button><span class="pagination__ellipsis">...</span><button class="pagination__page-number">30</button><button class="pagination__button">Next</button></div></div>` })
+export class PaginationComponent { @Input() total = 300; }
