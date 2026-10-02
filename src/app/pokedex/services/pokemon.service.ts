@@ -234,4 +234,65 @@ export class PokemonService {
       return '';
     }
   }
+
+  /**
+   * Searches Pokémon by name pattern or ID via the PokeAPI v2 GraphQL backend.
+   */
+  searchPokemon(term: string): Observable<readonly Pokemon[]> {
+    const cleaned = term.trim().toLowerCase();
+    const numericId = !isNaN(Number(cleaned)) ? Number(cleaned) : -1;
+    const namePattern = `%${cleaned}%`;
+
+    const query = `
+      query SearchPokemon($namePattern: String!, $idVal: Int!) {
+        pokemon_v2_pokemon(
+          where: {
+            _or: [
+              { name: { _ilike: $namePattern } },
+              { id: { _eq: $idVal } }
+            ]
+          },
+          limit: 10,
+          order_by: { id: asc }
+        ) {
+          id
+          name
+          pokemon_v2_pokemonsprites {
+            sprites
+          }
+          pokemon_v2_pokemonstats {
+            base_stat
+            pokemon_v2_stat {
+              name
+            }
+          }
+          pokemon_v2_pokemontypes {
+            pokemon_v2_type {
+              name
+            }
+          }
+        }
+      }
+    `;
+
+    return this.#http.post<GraphQLListResponse>(this.#apiUrl, {
+      query,
+      variables: { namePattern, idVal: numericId }
+    }).pipe(
+      retry({
+        count: 2,
+        delay: (error, retryCount) => timer(retryCount * 1000)
+      }),
+      map(response => {
+        if (response.errors && response.errors.length > 0) {
+          throw new Error(response.errors[0].message);
+        }
+        if (!response.data) {
+          throw new Error('Invalid GraphQL response structure: missing data');
+        }
+
+        return response.data.pokemon_v2_pokemon.map(node => this.#mapPokemonItem(node));
+      })
+    );
+  }
 }

@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, ElementRef, HostListener, inject, output, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { debounceTime, distinctUntilChanged, map, of, startWith, switchMap } from 'rxjs';
+import { debounceTime, distinctUntilChanged, map, of, startWith, switchMap, catchError } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Pokemon } from '../../../pokedex/models/pokemon.model';
-import { PokemonStore } from '../../../pokedex/state/pokemon.store';
+import { PokemonService } from '../../../pokedex/services/pokemon.service';
 
 @Component({
   selector: 'app-pokemon-autocomplete',
@@ -85,7 +85,7 @@ import { PokemonStore } from '../../../pokedex/state/pokemon.store';
 })
 export class PokemonAutocompleteComponent {
   private readonly elementRef = inject(ElementRef<HTMLElement>);
-  private readonly pokemonStore = inject(PokemonStore);
+  private readonly pokemonService = inject(PokemonService);
 
   readonly pokemonSelected = output<Pokemon>();
   readonly pickerOpen = signal(false);
@@ -98,7 +98,7 @@ export class PokemonAutocompleteComponent {
     { initialValue: '' }
   );
 
-  // RxJS search pipeline: debounce -> normalize -> distinct -> switchMap against store cache map
+  // RxJS search pipeline: debounce -> normalize -> distinct -> switchMap to API search service
   private readonly results$ = this.searchControl.valueChanges.pipe(
     debounceTime(300),
     map(term => term.trim().toLowerCase()),
@@ -107,15 +107,8 @@ export class PokemonAutocompleteComponent {
       if (!term) {
         return of<readonly Pokemon[]>([]);
       }
-      return this.pokemonStore.cache$.pipe(
-        map(cacheMap => Array.from(cacheMap.values())),
-        map(pokemons =>
-          pokemons.filter(pokemon => {
-            const nameMatch = pokemon.name.toLowerCase().includes(term);
-            const idMatch = pokemon.id.toString().includes(term);
-            return nameMatch || idMatch;
-          })
-        )
+      return this.pokemonService.searchPokemon(term).pipe(
+        catchError(() => of<readonly Pokemon[]>([]))
       );
     })
   );
