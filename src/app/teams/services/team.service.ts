@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import {
   Team,
@@ -87,94 +87,63 @@ export class TeamService {
   /**
    * Creates a new team via GraphQL mutation.
    *
-   * The next ID is calculated from the last
-   * team returned by the server.
+   * The backend generates the team ID.
    */
   createTeam(
     dto: CreateTeamDto
   ): Observable<Team> {
-    return this.getTeams().pipe(
-      map(teams => {
-        const lastTeam = teams.at(-1);
+    const mutation = `
+      mutation CreateTeam(
+        $name: String!
+        $pokemon_ids: [Int!]!
+        $trainer_id: ID!
+        $created_at: String!
+      ) {
+        createTeam(
+          name: $name
+          pokemon_ids: $pokemon_ids
+          trainer_id: $trainer_id
+          created_at: $created_at
+        ) {
+          id
+          name
+          pokemon_ids
+          trainer_id
+          created_at
+        }
+      }
+    `;
 
-        const nextId = lastTeam
-          ? Number(lastTeam.id) + 1
-          : 1;
+    const variables = {
+      name: dto.name.trim(),
+      pokemon_ids: dto.pokemonIds ?? [],
+      trainer_id: '1',
+      created_at: new Date().toISOString()
+    };
 
-        return {
-          id: String(nextId),
-          name: dto.name.trim(),
-          pokemonIds: dto.pokemonIds ?? []
-        };
-      }),
+    return this.#http
+      .post<GraphQLResponse<CreateTeamData>>(
+        this.#graphqlUrl,
+        {
+          query: mutation,
+          variables
+        }
+      )
+      .pipe(
+        map(response => {
+          this.throwGraphQLError(response);
 
-      switchMap(team => {
-        const mutation = `
-          mutation CreateTeam(
-            $id: ID!
-            $name: String!
-            $pokemon_ids: [Int!]!
-            $trainer_id: ID!
-            $created_at: String!
-          ) {
-            createTeam(
-              id: $id
-              name: $name
-              pokemon_ids: $pokemon_ids
-              trainer_id: $trainer_id
-              created_at: $created_at
-            ) {
-              id
-              name
-              pokemon_ids
-              trainer_id
-              created_at
-            }
+          if (!response.data?.createTeam) {
+            throw new Error(
+              'Failed to create team: no data returned from server'
+            );
           }
-        `;
 
-        const variables = {
-          id: team.id,
-          name: team.name,
-          pokemon_ids: team.pokemonIds,
-
-          // TODO: Replace this with the
-          // authenticated trainer ID.
-          trainer_id: '1',
-
-          created_at:
-            new Date().toISOString()
-        };
-
-        return this.#http
-          .post<GraphQLResponse<CreateTeamData>>(
-            this.#graphqlUrl,
-            {
-              query: mutation,
-              variables
-            }
-          )
-          .pipe(
-            map(response => {
-              this.throwGraphQLError(
-                response
-              );
-
-              if (
-                !response.data?.createTeam
-              ) {
-                throw new Error(
-                  'Failed to create team: no data returned from server'
-                );
-              }
-
-              return this.mapTeam(
-                response.data.createTeam
-              );
-            })
+          return this.mapTeam(
+            response.data.createTeam
           );
-      })
-    );
+        })
+      );
   }
 
   /**
@@ -210,9 +179,7 @@ export class TeamService {
       )
       .pipe(
         map(response => {
-          this.throwGraphQLError(
-            response
-          );
+          this.throwGraphQLError(response);
 
           if (!response.data) {
             throw new Error(
@@ -257,9 +224,7 @@ export class TeamService {
   private throwGraphQLError<T>(
     response: GraphQLResponse<T>
   ): void {
-    if (
-      !response.errors?.length
-    ) {
+    if (!response.errors?.length) {
       return;
     }
 

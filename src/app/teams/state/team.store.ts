@@ -1,6 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, catchError, of } from 'rxjs';
-import { CreateTeamDto, Team } from '../models/team.model';
+
+import {
+  CreateTeamDto,
+  Team
+} from '../models/team.model';
+
 import { TeamService } from '../services/team.service';
 
 type TeamResourceStatus =
@@ -42,6 +47,12 @@ export class TeamStore {
   readonly mutationError$ =
     this.mutationErrorSubject.asObservable();
 
+  private readonly mutationSuccessSubject =
+    new BehaviorSubject<string | null>(null);
+
+  readonly mutationSuccess$ =
+    this.mutationSuccessSubject.asObservable();
+
   private get currentTeams(): readonly Team[] {
     return this.teamsSubject.value;
   }
@@ -81,13 +92,14 @@ export class TeamStore {
   /**
    * Creates a team optimistically.
    *
-   * The temporary team is added immediately.
-   * If the API request fails, the previous
-   * state is restored.
+   * The team is added immediately using a temporary ID.
+   * The temporary team is replaced with the server-created
+   * team when the API request succeeds.
+   *
+   * If the API request fails, the previous state is restored.
    */
   createTeam(dto: CreateTeamDto): void {
-    const temporaryId =
-      `temp-${Date.now()}`;
+    const temporaryId = `temp-${Date.now()}`;
 
     const optimisticTeam: Team = {
       id: temporaryId,
@@ -104,6 +116,7 @@ export class TeamStore {
     ]);
 
     this.mutationErrorSubject.next(null);
+    this.mutationSuccessSubject.next(null);
 
     this.teamService
       .createTeam(dto)
@@ -140,8 +153,10 @@ export class TeamStore {
           updatedTeams
         );
 
-        this.mutationErrorSubject.next(
-          null
+        this.mutationErrorSubject.next(null);
+
+        this.mutationSuccessSubject.next(
+          `Team "${createdTeam.name}" created successfully.`
         );
       });
   }
@@ -150,8 +165,7 @@ export class TeamStore {
    * Deletes a team optimistically.
    *
    * The team is removed immediately.
-   * If the API request fails, the previous
-   * state is restored.
+   * If the API request fails, the previous state is restored.
    */
   deleteTeam(teamId: string): void {
     const previousTeams =
@@ -167,6 +181,7 @@ export class TeamStore {
     );
 
     this.mutationErrorSubject.next(null);
+    this.mutationSuccessSubject.next(null);
 
     this.teamService
       .deleteTeam(teamId)
@@ -187,6 +202,10 @@ export class TeamStore {
           return of(null);
         })
       )
-      .subscribe();
+      .subscribe(() => {
+        this.mutationSuccessSubject.next(
+          'Team deleted successfully.'
+        );
+      });
   }
 }

@@ -51,21 +51,20 @@ export class AppComponent {
     signal<ToastType>('success');
 
   constructor() {
+    // Listen for mutation errors
     this.teamStore.mutationError$
-      .pipe(
-        takeUntilDestroyed(
-          this.destroyRef
-        )
-      )
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(error => {
-        if (!error) {
-          return;
-        }
+        if (!error) return;
+        this.showToast(error, 'error');
+      });
 
-        this.showToast(
-          error,
-          'error'
-        );
+    // Listen for mutation successes
+    this.teamStore.mutationSuccess$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(success => {
+        if (!success) return;
+        this.showToast(success, 'success');
       });
   }
 
@@ -76,10 +75,7 @@ export class AppComponent {
     this.teamStore.createTeam(team);
   }
 
-  private showToast(
-    message: string,
-    type: ToastType
-  ): void {
+  private showToast( message: string, type: ToastType): void {
     this.toastMessage.set(message);
     this.toastType.set(type);
   }
