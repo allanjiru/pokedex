@@ -43,17 +43,23 @@ export class TeamStore {
   loadTeams(): void {
     this.#resourceStateSubject.next({ status: 'loading', error: null });
 
-    this.#teamService.getTeams().pipe(
-      tap(teams => {
+    this.#teamService.getTeams().subscribe({
+      next: teams => {
         this.#teamsSubject.next(teams);
-        this.#resourceStateSubject.next({ status: 'success', error: null });
-      }),
-      catchError(err => {
+        this.#resourceStateSubject.next({
+          status: 'success',
+          error: null
+        });
+      },
+      error: err => {
         const errorMessage = err?.message ?? 'Failed to load teams';
-        this.#resourceStateSubject.next({ status: 'error', error: errorMessage });
-        return of([]);
-      })
-    ).subscribe();
+
+        this.#resourceStateSubject.next({
+          status: 'error',
+          error: errorMessage
+        });
+      }
+    });
   }
 
   /**
