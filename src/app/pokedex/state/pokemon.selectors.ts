@@ -1,18 +1,28 @@
+
 import { Injectable, inject } from '@angular/core';
-import { 
-  Observable, 
-  BehaviorSubject, 
-  combineLatest, 
-  map, 
-  distinctUntilChanged, 
-  shareReplay, 
-  debounceTime, 
-  switchMap 
+import {
+  BehaviorSubject,
+  Observable,
+  combineLatest,
+  map,
+  distinctUntilChanged,
+  shareReplay,
+  debounceTime,
+  switchMap
 } from 'rxjs';
 import { Pokemon } from '../models/pokemon.model';
 import { PokemonStore } from './pokemon.store';
 
-export type SortKey = 'id' | 'name' | 'hp' | 'attack' | 'defense' | 'specialAttack' | 'specialDefense' | 'speed' | 'total';
+export type SortKey =
+  | 'id'
+  | 'name'
+  | 'hp'
+  | 'attack'
+  | 'defense'
+  | 'specialAttack'
+  | 'specialDefense'
+  | 'speed'
+  | 'total';
 
 @Injectable({
   providedIn: 'root'
@@ -20,136 +30,164 @@ export type SortKey = 'id' | 'name' | 'hp' | 'attack' | 'defense' | 'specialAtta
 export class PokemonSelectors {
   readonly #store = inject(PokemonStore);
 
-  // --- State Triggers ---
+  // Search and filtering state.
   readonly #searchSubject = new BehaviorSubject<string>('');
   readonly searchTerm$ = this.#searchSubject.asObservable();
 
   readonly #typeFilterSubject = new BehaviorSubject<string>('all');
   readonly typeFilter$ = this.#typeFilterSubject.asObservable();
 
+  // Sorting state.
   readonly #sortKeySubject = new BehaviorSubject<SortKey>('id');
   readonly sortKey$ = this.#sortKeySubject.asObservable();
 
-  readonly #sortDirectionSubject = new BehaviorSubject<'asc' | 'desc'>('asc');
+  readonly #sortDirectionSubject =
+    new BehaviorSubject<'asc' | 'desc'>('asc');
   readonly sortDirection$ = this.#sortDirectionSubject.asObservable();
 
+  // Pagination state.
   readonly #pageSubject = new BehaviorSubject<number>(1);
-  readonly page$ = this.#pageSubject.asObservable().pipe(distinctUntilChanged());
+  readonly page$ = this.#pageSubject.asObservable().pipe(
+    distinctUntilChanged()
+  );
 
   readonly #pageSizeSubject = new BehaviorSubject<number>(10);
-  readonly pageSize$ = this.#pageSizeSubject.asObservable().pipe(distinctUntilChanged());
+  readonly pageSize$ = this.#pageSizeSubject.asObservable().pipe(
+    distinctUntilChanged()
+  );
 
-  // --- Selection State Triggers ---
-  readonly #selectedIdSubject = new BehaviorSubject<number | null>(null);
+  // Selected Pokémon state.
+  readonly #selectedIdSubject =
+    new BehaviorSubject<number | null>(null);
   readonly selectedId$ = this.#selectedIdSubject.asObservable();
 
   /**
-   * Combines the store cache and the selected ID to yield the fully hydrated
-   * Pokémon from the cache, updating automatically when detail requests complete.
+   * Resolves the selected Pokémon from the full cache so detail
+   * information remains available after navigating between pages.
    */
-  readonly selectedPokemon$: Observable<Pokemon | null> = combineLatest([
-    this.#store.cache$,
-    this.selectedId$
-  ]).pipe(
-    map(([cache, id]) => {
-      if (id === null) return null;
-      return cache.get(id) ?? null;
-    }),
-    shareReplay(1)
-  );
+  readonly selectedPokemon$: Observable<Pokemon | null> =
+    combineLatest([
+      this.#store.cache$,
+      this.selectedId$
+    ]).pipe(
+      map(([cache, id]) =>
+        id === null ? null : cache.get(id) ?? null
+      ),
+      shareReplay(1)
+    );
 
   /**
-   * Step 1: Convert the Map cache into a Pokemon array stream.
-   * Emits whenever the store replaces the cache reference (guaranteeing detail updates propagate).
+   * Search only the current API page, not the entire accumulated cache.
    */
-  readonly allCachedPokemon$: Observable<Pokemon[]> = this.#store.cache$.pipe(
-    map(cacheMap => Array.from(cacheMap.values())),
-    shareReplay(1)
-  );
+  readonly searchedPokemon$: Observable<Pokemon[]> =
+    this.searchTerm$.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      switchMap(term =>
+        this.#store.currentPage$.pipe(
+          map(pokemonList => {
+            const normalizedTerm = term.trim().toLowerCase();
+
+            if (!normalizedTerm) {
+              return [...pokemonList];
+            }
+
+            return pokemonList.filter(pokemon =>
+              pokemon.name.toLowerCase().includes(normalizedTerm)
+            );
+          })
+        )
+      ),
+      shareReplay(1)
+    );
 
   /**
-   * Step 2: Search pipeline satisfying the required operator sequence.
+   * Filters the current page by Pokémon type.
    */
-  readonly searchedPokemon$: Observable<Pokemon[]> = this.searchTerm$.pipe(
-    debounceTime(300),
-    distinctUntilChanged(),
-    switchMap(term => 
-      this.allCachedPokemon$.pipe(
-        map(pokemonList => {
-          const lowerTerm = term.toLowerCase().trim();
-          if (!lowerTerm) {
-            return pokemonList;
-          }
-          return pokemonList.filter(p => p.name.toLowerCase().includes(lowerTerm));
-        })
-      )
-    ),
-    shareReplay(1)
-  );
-
-  /**
-   * Step 3: Type Filtering using combineLatest.
-   */
-  readonly filteredPokemon$: Observable<Pokemon[]> = combineLatest([
-    this.searchedPokemon$,
-    this.typeFilter$.pipe(distinctUntilChanged())
-  ]).pipe(
-    map(([pokemonList, selectedType]) => {
-      if (!selectedType || selectedType.toLowerCase() === 'all') {
-        return pokemonList;
-      }
-      const lowerType = selectedType.toLowerCase();
-      return pokemonList.filter(p => p.types.some(t => t.toLowerCase() === lowerType));
-    }),
-    shareReplay(1)
-  );
-
-  /**
-   * Step 4: Sorting using combineLatest with immutable sorting logic and strict SortKey typing.
-   */
-  readonly sortedPokemon$: Observable<Pokemon[]> = combineLatest([
-    this.filteredPokemon$,
-    this.sortKey$.pipe(distinctUntilChanged()),
-    this.sortDirection$.pipe(distinctUntilChanged())
-  ]).pipe(
-    map(([pokemonList, sortKey, direction]) => {
-      return [...pokemonList].sort((a, b) => {
-        let aVal: string | number;
-        let bVal: string | number;
-
-        if (sortKey === 'name') {
-          aVal = a.name;
-          bVal = b.name;
-        } else if (sortKey === 'id') {
-          aVal = a.id;
-          bVal = b.id;
-        } else if (sortKey === 'total') {
-          aVal = Object.values(a.stats).reduce((sum, v) => sum + v, 0);
-          bVal = Object.values(b.stats).reduce((sum, v) => sum + v, 0);
-        } else {
-          aVal = a.stats[sortKey as keyof Pokemon['stats']] ?? 0;
-          bVal = b.stats[sortKey as keyof Pokemon['stats']] ?? 0;
+  readonly filteredPokemon$: Observable<Pokemon[]> =
+    combineLatest([
+      this.searchedPokemon$,
+      this.typeFilter$.pipe(distinctUntilChanged())
+    ]).pipe(
+      map(([pokemonList, selectedType]) => {
+        if (
+          !selectedType ||
+          selectedType.toLowerCase() === 'all'
+        ) {
+          return pokemonList;
         }
 
-        if (aVal < bVal) return direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }),
-    shareReplay(1)
-  );
+        const normalizedType = selectedType.toLowerCase();
+
+        return pokemonList.filter(pokemon =>
+          pokemon.types.some(
+            type => type.toLowerCase() === normalizedType
+          )
+        );
+      }),
+      shareReplay(1)
+    );
 
   /**
-   * Authoritative total count stream from the store for remote pagination UI.
+   * Sorts the filtered current-page Pokémon without mutating
+   * the source array.
    */
-  readonly totalCount$: Observable<number> = this.#store.totalCount$;
+  readonly sortedPokemon$: Observable<Pokemon[]> =
+    combineLatest([
+      this.filteredPokemon$,
+      this.sortKey$.pipe(distinctUntilChanged()),
+      this.sortDirection$.pipe(distinctUntilChanged())
+    ]).pipe(
+      map(([pokemonList, sortKey, direction]) =>
+        [...pokemonList].sort((a, b) => {
+          let aValue: string | number;
+          let bValue: string | number;
+
+          if (sortKey === 'name') {
+            aValue = a.name;
+            bValue = b.name;
+          } else if (sortKey === 'id') {
+            aValue = a.id;
+            bValue = b.id;
+          } else if (sortKey === 'total') {
+            aValue = Object.values(a.stats).reduce(
+              (sum, value) => sum + value,
+              0
+            );
+            bValue = Object.values(b.stats).reduce(
+              (sum, value) => sum + value,
+              0
+            );
+          } else {
+            aValue = a.stats[sortKey];
+            bValue = b.stats[sortKey];
+          }
+
+          if (aValue < bValue) {
+            return direction === 'asc' ? -1 : 1;
+          }
+
+          if (aValue > bValue) {
+            return direction === 'asc' ? 1 : -1;
+          }
+
+          return 0;
+        })
+      ),
+      shareReplay(1)
+    );
 
   /**
-   * Represents the current API-paginated page after client-side transformations (search/filter/sort).
+   * The table receives the sorted results from the current API page.
+   * No additional client-side pagination is needed.
    */
-  readonly paginatedPokemon$: Observable<Pokemon[]> = this.sortedPokemon$;
+  readonly paginatedPokemon$: Observable<Pokemon[]> =
+    this.sortedPokemon$;
 
-  // --- Component Action Dispatchers ---
+  readonly totalCount$: Observable<number> =
+    this.#store.totalCount$;
+
+  // Component action dispatchers.
 
   updateSearchTerm(term: string): void {
     this.#searchSubject.next(term);
@@ -163,8 +201,12 @@ export class PokemonSelectors {
 
   updateSorting(key: SortKey): void {
     if (this.#sortKeySubject.value === key) {
-      const newDir = this.#sortDirectionSubject.value === 'asc' ? 'desc' : 'asc';
-      this.#sortDirectionSubject.next(newDir);
+      const nextDirection =
+        this.#sortDirectionSubject.value === 'asc'
+          ? 'desc'
+          : 'asc';
+
+      this.#sortDirectionSubject.next(nextDirection);
     } else {
       this.#sortKeySubject.next(key);
       this.#sortDirectionSubject.next('asc');

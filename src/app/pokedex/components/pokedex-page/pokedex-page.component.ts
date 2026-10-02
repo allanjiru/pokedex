@@ -24,7 +24,7 @@ import { Pokemon } from '../../models/pokemon.model';
         [pageSize]="pageSize()"
         (pageSizeChanged)="onPageSizeChange($event)"
         (searchChanged)="onSearchChanged($event)" 
-        (typeChanged)="onTypeChanged($event)" 
+        (typeChanged)="onTypeChanged($event)"
       />
 
       @if (listState().status === 'loading' || listState().status === 'idle') {

@@ -47,7 +47,7 @@ import { SortKey } from '../../state/pokemon.selectors';
                     {{ stat === 'total' ? total(pokemon) : pokemon.stats[stat] }}
                   </td> }
                   <td class="pokemon-table__td">
-                    <button class="pokemon-table__add-btn" [disabled]="inTeam(pokemon)" (click)="$event.stopPropagation(); addPokemon.emit(pokemon)">{{ inTeam(pokemon) ? 'In team' : '+ Add' }}
+                    <button class="pokemon-table__add-btn" [class.pokemon-table__add-btn--in-team]="inTeam(pokemon)" [disabled]="inTeam(pokemon)" (click)="$event.stopPropagation(); addPokemon.emit(pokemon)">{{ inTeam(pokemon) ? 'In team' : '+ Add' }}
                     </button>
                   </td>
               </tr> }
