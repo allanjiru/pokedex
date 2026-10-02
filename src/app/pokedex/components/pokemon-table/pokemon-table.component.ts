@@ -1,34 +1,36 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output } from '@angular/core';
 import { Pokemon } from '../../models/pokemon.model';
 import { typeClass } from '../../utils/pokemon.utils';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
+import { SortKey } from '../../state/pokemon.selectors';
 
 @Component({
-    selector: 'app-pokemon-table',
-    standalone: true,
-    imports: [PaginationComponent],
-    template: `
+  selector: 'app-pokemon-table',
+  standalone: true,
+  imports: [PaginationComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
       <div class="pokemon-table-card">
         <div class="pokemon-table-card__scroll-container">
           <table class="pokemon-table">
             <thead>
               <tr>
                 <th class="pokemon-table__th sprite-col">Sprite</th>
-                <th class="pokemon-table__th sortable" (click)="sortBy('name')">Name ↕</th>
+                <th class="pokemon-table__th sortable" (click)="sort.emit('name')">Name ↕</th>
                 <th class="pokemon-table__th">Types</th>
-                <th class="pokemon-table__th numeric" (click)="sortBy('hp')">HP ↕</th>
-                <th class="pokemon-table__th numeric" (click)="sortBy('attack')">ATK ↕</th>
-                <th class="pokemon-table__th numeric" (click)="sortBy('defense')">DEF ↕</th>
-                <th class="pokemon-table__th numeric" (click)="sortBy('specialAttack')">SPA ↕</th>
-                <th class="pokemon-table__th numeric" (click)="sortBy('specialDefense')">SPD ↕</th>
-                <th class="pokemon-table__th numeric" (click)="sortBy('speed')">SPE ↕</th>
-                <th class="pokemon-table__th numeric" (click)="sortBy('total')">TOTAL ↕</th>
+                <th class="pokemon-table__th numeric" (click)="sort.emit('hp')">HP ↕</th>
+                <th class="pokemon-table__th numeric" (click)="sort.emit('attack')">ATK ↕</th>
+                <th class="pokemon-table__th numeric" (click)="sort.emit('defense')">DEF ↕</th>
+                <th class="pokemon-table__th numeric" (click)="sort.emit('specialAttack')">SPA ↕</th>
+                <th class="pokemon-table__th numeric" (click)="sort.emit('specialDefense')">SPD ↕</th>
+                <th class="pokemon-table__th numeric" (click)="sort.emit('speed')">SPE ↕</th>
+                <th class="pokemon-table__th numeric" (click)="sort.emit('total')">TOTAL ↕</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-            @for (pokemon of sortedPokemon; track pokemon.id) { 
-              <tr class="pokemon-table__row" [class.pokemon-table__row--selected]="selected?.id === pokemon.id" (click)="selectedChange.emit(pokemon)">
+            @for (pokemon of pokemon(); track pokemon.id) { 
+              <tr class="pokemon-table__row" [class.pokemon-table__row--selected]="selected()?.id === pokemon.id" (click)="selectedChange.emit(pokemon)">
                 <td class="pokemon-table__td">
                   <img class="pokemon-table__sprite-img" [src]="pokemon.sprite" [alt]="pokemon.name"/>
                 </td>
@@ -53,42 +55,40 @@ import { PaginationComponent } from '../../../shared/components/pagination/pagin
             </tbody>
           </table>
         </div>
-        <app-pagination [total]="totalCount" />
+        <app-pagination 
+          [total]="totalCount()" 
+          [page]="page()" 
+          [pageSize]="pageSize()" 
+          (pageChange)="pageChange.emit($event)" 
+          (pageSizeChange)="pageSizeChange.emit($event)" 
+        />
       </div>
     `
 })
 export class PokemonTableComponent {
-    @Input() pokemon: Pokemon[] = [];
-    @Input() team: Pokemon[] = [];
-    @Input() selected: Pokemon | null = null;
-    @Output() selectedChange = new EventEmitter < Pokemon > ();
-    @Output() addPokemon = new EventEmitter < Pokemon > ();
-    statKeys = ['hp', 'attack', 'defense', 'specialAttack', 'specialDefense', 'speed', 'total'] as
-    const;
-    sortKey: string = 'total';
-    descending = true;
-    typeClass = typeClass;
-    get sortedPokemon(): Pokemon[] {
-        return [...this.pokemon].sort((a, b) => {
-            const av = this.sortKey === 'name' ? a.name : this.sortKey === 'total' ? this.total(a) : a.stats[this.sortKey as keyof Pokemon['stats']];
-            const bv = this.sortKey === 'name' ? b.name : this.sortKey === 'total' ? this.total(b) : b.stats[this.sortKey as keyof Pokemon['stats']];
-            return (av < bv ? -1 : av > bv ? 1 : 0) * (this.descending ? -1 : 1);
-        });
-    }
-    get totalCount(): number {
-        return 300;
-    }
-    total(pokemon: Pokemon): number {
-        return Object.values(pokemon.stats).reduce((sum, value) => sum + value, 0);
-    }
-    inTeam(pokemon: Pokemon): boolean {
-        return this.team.some((member) => member.id === pokemon.id);
-    }
-    sortBy(key: string): void {
-        if (this.sortKey === key) this.descending = !this.descending;
-        else {
-            this.sortKey = key;
-            this.descending = false;
-        }
-    }
+  // --- Modern Angular Signals Inputs ---
+  readonly pokemon = input<Pokemon[]>([]);
+  readonly team = input<Pokemon[]>([]);
+  readonly selected = input<Pokemon | null>(null);
+  readonly totalCount = input<number>(0);
+  readonly page = input<number>(1);
+  readonly pageSize = input<number>(20);
+
+  // --- Outputs ---
+  readonly selectedChange = output<Pokemon>();
+  readonly addPokemon = output<Pokemon>();
+  readonly sort = output<SortKey>();
+  readonly pageChange = output<number>();
+  readonly pageSizeChange = output<number>();
+
+  readonly statKeys = ['hp', 'attack', 'defense', 'specialAttack', 'specialDefense', 'speed', 'total'] as const;
+  readonly typeClass = typeClass;
+
+  total(pokemon: Pokemon): number {
+    return Object.values(pokemon.stats).reduce((sum, value) => sum + value, 0);
+  }
+
+  inTeam(pokemon: Pokemon): boolean {
+    return this.team().some((member) => member.id === pokemon.id);
+  }
 }
