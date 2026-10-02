@@ -1,9 +1,13 @@
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, catchError, of, tap } from 'rxjs';
-import { Team, CreateTeamDto } from '../models/team.model';
+import { BehaviorSubject, catchError, of } from 'rxjs';
+import { CreateTeamDto, Team } from '../models/team.model';
 import { TeamService } from '../services/team.service';
 
-export type TeamResourceStatus = 'idle' | 'loading' | 'success' | 'error';
+type TeamResourceStatus =
+  | 'idle'
+  | 'loading'
+  | 'success'
+  | 'error';
 
 export interface TeamResourceState {
   readonly status: TeamResourceStatus;
@@ -14,111 +18,175 @@ export interface TeamResourceState {
   providedIn: 'root'
 })
 export class TeamStore {
-  readonly #teamService = inject(TeamService);
+  private readonly teamService =
+    inject(TeamService);
 
-  // --- Core State Subjects ---
-  readonly #teamsSubject = new BehaviorSubject<Team[]>([]);
-  readonly teams$: Observable<Team[]> = this.#teamsSubject.asObservable();
+  private readonly teamsSubject =
+    new BehaviorSubject<readonly Team[]>([]);
 
-  readonly #resourceStateSubject = new BehaviorSubject<TeamResourceState>({
-    status: 'idle',
-    error: null
-  });
-  readonly resourceState$: Observable<TeamResourceState> = this.#resourceStateSubject.asObservable();
+  readonly teams$ =
+    this.teamsSubject.asObservable();
 
-  readonly #mutationErrorSubject = new BehaviorSubject<string | null>(null);
-  readonly mutationError$: Observable<string | null> = this.#mutationErrorSubject.asObservable();
+  private readonly resourceStateSubject =
+    new BehaviorSubject<TeamResourceState>({
+      status: 'idle',
+      error: null
+    });
 
-  // --- Snapshot Getters ---
-  get #currentTeams(): Team[] {
-    return this.#teamsSubject.value;
+  readonly resourceState$ =
+    this.resourceStateSubject.asObservable();
+
+  private readonly mutationErrorSubject =
+    new BehaviorSubject<string | null>(null);
+
+  readonly mutationError$ =
+    this.mutationErrorSubject.asObservable();
+
+  private get currentTeams(): readonly Team[] {
+    return this.teamsSubject.value;
   }
 
-  // --- Actions ---
-
   /**
-   * Loads all saved teams from the backend.
-   * Keeps existing teams intact if the load request fails.
+   * Loads all teams from the GraphQL API.
    */
   loadTeams(): void {
-    this.#resourceStateSubject.next({ status: 'loading', error: null });
+    this.resourceStateSubject.next({
+      status: 'loading',
+      error: null
+    });
 
-    this.#teamService.getTeams().subscribe({
+    this.teamService.getTeams().subscribe({
       next: teams => {
-        this.#teamsSubject.next(teams);
-        this.#resourceStateSubject.next({
+        this.teamsSubject.next(teams);
+
+        this.resourceStateSubject.next({
           status: 'success',
           error: null
         });
       },
-      error: err => {
-        const errorMessage = err?.message ?? 'Failed to load teams';
 
-        this.#resourceStateSubject.next({
+      error: error => {
+        const message =
+          error?.message ??
+          'Failed to load teams.';
+
+        this.resourceStateSubject.next({
           status: 'error',
-          error: errorMessage
+          error: message
         });
       }
     });
   }
 
   /**
-   * Optimistically creates a team using CreateTeamDto.
-   * Inserts a temporary local team immediately, replacing it with the server response or rolling back on error.
+   * Creates a team optimistically.
+   *
+   * The temporary team is added immediately.
+   * If the API request fails, the previous
+   * state is restored.
    */
   createTeam(dto: CreateTeamDto): void {
-    const tempId = `temp-${Date.now()}`;
+    const temporaryId =
+      `temp-${Date.now()}`;
+
     const optimisticTeam: Team = {
-      id: tempId,
+      id: temporaryId,
       name: dto.name,
       pokemonIds: dto.pokemonIds ?? []
     };
 
-    const previousTeams = this.#currentTeams;
-    
-    // Optimistic update
-    this.#teamsSubject.next([...previousTeams, optimisticTeam]);
-    this.#mutationErrorSubject.next(null);
+    const previousTeams =
+      this.currentTeams;
 
-    this.#teamService.createTeam(dto).pipe(
-      tap(createdTeam => {
-        const updated = this.#currentTeams.map(t => t.id === tempId ? createdTeam : t);
-        this.#teamsSubject.next(updated);
-        this.#mutationErrorSubject.next(null); // Clear any previous mutation error on success
-      }),
-      catchError(err => {
-        // Rollback on failure
-        this.#teamsSubject.next(previousTeams);
-        const errorMessage = err?.message ?? 'Failed to create team';
-        this.#mutationErrorSubject.next(errorMessage);
-        return of(null);
-      })
-    ).subscribe();
+    this.teamsSubject.next([
+      ...previousTeams,
+      optimisticTeam
+    ]);
+
+    this.mutationErrorSubject.next(null);
+
+    this.teamService
+      .createTeam(dto)
+      .pipe(
+        catchError(error => {
+          this.teamsSubject.next(
+            previousTeams
+          );
+
+          const message =
+            error?.message ??
+            'Failed to create team.';
+
+          this.mutationErrorSubject.next(
+            message
+          );
+
+          return of(null);
+        })
+      )
+      .subscribe(createdTeam => {
+        if (!createdTeam) {
+          return;
+        }
+
+        const updatedTeams =
+          this.currentTeams.map(team =>
+            team.id === temporaryId
+              ? createdTeam
+              : team
+          );
+
+        this.teamsSubject.next(
+          updatedTeams
+        );
+
+        this.mutationErrorSubject.next(
+          null
+        );
+      });
   }
 
   /**
-   * Optimistically deletes a team by its string ID.
-   * Removes it from local state immediately, restoring previous teams if deletion fails.
+   * Deletes a team optimistically.
+   *
+   * The team is removed immediately.
+   * If the API request fails, the previous
+   * state is restored.
    */
   deleteTeam(teamId: string): void {
-    const previousTeams = this.#currentTeams;
-    const filteredTeams = previousTeams.filter(t => t.id !== teamId);
+    const previousTeams =
+      this.currentTeams;
 
-    // Optimistic update
-    this.#teamsSubject.next(filteredTeams);
-    this.#mutationErrorSubject.next(null);
+    const updatedTeams =
+      previousTeams.filter(
+        team => team.id !== teamId
+      );
 
-    this.#teamService.deleteTeam(teamId).pipe(
-      tap(() => {
-        this.#mutationErrorSubject.next(null); // Clear any previous mutation error on success
-      }),
-      catchError(err => {
-        // Rollback on failure
-        this.#teamsSubject.next(previousTeams);
-        const errorMessage = err?.message ?? 'Failed to delete team';
-        this.#mutationErrorSubject.next(errorMessage);
-        return of(null);
-      })
-    ).subscribe();
+    this.teamsSubject.next(
+      updatedTeams
+    );
+
+    this.mutationErrorSubject.next(null);
+
+    this.teamService
+      .deleteTeam(teamId)
+      .pipe(
+        catchError(error => {
+          this.teamsSubject.next(
+            previousTeams
+          );
+
+          const message =
+            error?.message ??
+            'Failed to delete team.';
+
+          this.mutationErrorSubject.next(
+            message
+          );
+
+          return of(null);
+        })
+      )
+      .subscribe();
   }
 }
