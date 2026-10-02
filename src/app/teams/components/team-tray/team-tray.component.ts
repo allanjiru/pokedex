@@ -25,6 +25,7 @@ import {
 
 import { Pokemon } from '../../../pokedex/models/pokemon.model';
 import { TeamService } from '../../services/team.service';
+import { TeamStore } from '../../state/team.store';
 import { PokemonAutocompleteComponent } from '../pokemon-autocomplete/pokemon-autocomplete.component';
 
 export function trimmedLengthValidator(
@@ -230,6 +231,7 @@ export function trimmedLengthValidator(
 export class TeamTrayComponent {
   private readonly fb = inject(FormBuilder);
   private readonly teamService = inject(TeamService);
+  private readonly teamStore = inject(TeamStore);
 
   /**
    * Pokémon currently selected while building the team.
@@ -315,9 +317,6 @@ export class TeamTrayComponent {
 
   /**
    * Adds a Pokémon selected from the autocomplete.
-   *
-   * Prevents duplicate Pokémon and prevents the team
-   * from exceeding six Pokémon.
    */
   onPokemonSelected(pokemon: Pokemon): void {
     const currentTeam =
@@ -357,60 +356,66 @@ export class TeamTrayComponent {
   }
 
   /**
-   * Validates and emits the completed team.
+   * Validates, runs database uniqueness check, and emits the completed team.
    */
   onCreateTeam(): void {
     this.submitAttempted.set(true);
     this.errorSubmit.set('');
 
-    const name =
-      this.teamNameControl.value?.trim() ?? '';
-
-    const pokemon =
-      this.selectedPokemon();
+    const name = this.teamNameControl.value?.trim() ?? '';
+    const pokemon = this.selectedPokemon();
 
     this.teamNameControl.markAsTouched();
 
     if (!name) {
-      this.errorSubmit.set(
-        'Team name is required.'
-      );
+      const msg = 'Team name is required.';
+      this.errorSubmit.set(msg);
+      this.teamStore.setError(msg);
       return;
     }
 
     if (pokemon.length < 1) {
-      this.errorSubmit.set(
-        'A team must have at least one Pokémon.'
-      );
+      const msg = 'A team must have at least one Pokémon.';
+      this.errorSubmit.set(msg);
+      this.teamStore.setError(msg);
       return;
     }
 
     if (pokemon.length > 6) {
-      this.errorSubmit.set(
-        'A team can have at most six Pokémon.'
-      );
-      return;
-    }
-
-    if (this.teamNameControl.pending) {
-      this.errorSubmit.set(
-        'Please wait while the team name is being checked.'
-      );
+      const msg = 'A team can have at most six Pokémon.';
+      this.errorSubmit.set(msg);
+      this.teamStore.setError(msg);
       return;
     }
 
     if (this.teamNameControl.invalid) {
-      this.errorSubmit.set(
-        'Please enter a valid team name.'
-      );
+      const msg = 'Please enter a valid team name (3-30 characters).';
+      this.errorSubmit.set(msg);
+      this.teamStore.setError(msg);
       return;
     }
 
-    this.createTeam.emit({
-      name,
-      pokemonIds: pokemon.map(
-        member => member.id
-      )
+    // Direct database uniqueness check on submission
+    this.teamService.teamNameExists(name).subscribe({
+      next: (exists) => {
+        if (exists) {
+          const msg = 'This team name is already taken.';
+          this.errorSubmit.set(msg);
+          this.teamStore.setError(msg);
+          this.teamNameControl.setErrors({ nameTaken: true });
+          return;
+        }
+
+        this.createTeam.emit({
+          name,
+          pokemonIds: pokemon.map(member => member.id)
+        });
+      },
+      error: () => {
+        const msg = 'Could not verify team name uniqueness with the server. Please try again.';
+        this.errorSubmit.set(msg);
+        this.teamStore.setError(msg);
+      }
     });
   }
 }

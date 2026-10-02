@@ -984,6 +984,14 @@ app-workspace{
 	font-weight:700
 }
 
+.toast--error {
+  border-left-color: var(--color-danger);
+}
+
+.toast--error .toast__icon {
+  color: var(--color-danger);
+}
+
 
 
 app-pokedex-page,

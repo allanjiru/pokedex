@@ -25,7 +25,6 @@ import { SortKey } from '../../state/pokemon.selectors';
                 <th class="pokemon-table__th sortable" (click)="sort.emit('specialDefense')">SPD ↕</th>
                 <th class="pokemon-table__th sortable" (click)="sort.emit('speed')">SPE ↕</th>
                 <th class="pokemon-table__th sortable" (click)="sort.emit('total')">TOTAL ↕</th>
-                <th></th>
               </tr>
             </thead>
             <tbody class="pokemon-table__tbody">
@@ -34,22 +33,19 @@ import { SortKey } from '../../state/pokemon.selectors';
                 <td class="pokemon-table__td pokemon-table__td--sprite">
                   <img class="pokemon-table__sprite-img" [src]="pokemon.sprite" [alt]="pokemon.name"/>
                 </td>
-                <td class="pokemon-table__td pokemon-table__td--name">
+                <td class="pokemon-table__td">
                   <span class="pokemon-table__species-name">{{ pokemon.name }}</span>
                 </td>
-                <td class="pokemon-table__td pokemon-table__td--types">
+                <td class="pokemon-table__td ">
                   <span class="pokemon-table__types-wrapper">
                     @for (type of pokemon.types; track type) { 
                       <span class="type-badge" [class]="typeClass(type)">{{ type }}</span> }</span>
                 </td>
                 @for (stat of statKeys; track stat) { 
-                  <td class="pokemon-table__td pokemon-table__td--numeric">
-                    {{ stat === 'total' ? total(pokemon) : pokemon.stats[stat] }}
-                  </td> }
                   <td class="pokemon-table__td">
-                    <button class="pokemon-table__add-btn" [class.pokemon-table__add-btn--in-team]="inTeam(pokemon)" [disabled]="inTeam(pokemon)" (click)="$event.stopPropagation(); addPokemon.emit(pokemon)">{{ inTeam(pokemon) ? 'In team' : '+ Add' }}
-                    </button>
-                  </td>
+                    {{ stat === 'total' ? total(pokemon) : pokemon.stats[stat] }}
+                  </td> 
+                }
               </tr> }
             </tbody>
           </table>

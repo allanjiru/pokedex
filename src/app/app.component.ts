@@ -6,7 +6,6 @@ import { TeamTrayComponent } from './teams/components/team-tray/team-tray.compon
 import { TeamStore } from './teams/state/team.store';
 import { ToastComponent, ToastType } from './shared/components/toast/toast.component';
 
-
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -24,6 +23,7 @@ import { ToastComponent, ToastType } from './shared/components/toast/toast.compo
         <app-pokedex-page />
       </main>
 
+      <!-- Remove (trayError) completely from here -->
       <app-team-tray
         (createTeam)="onCreateTeam($event)"
       />
@@ -38,17 +38,13 @@ import { ToastComponent, ToastType } from './shared/components/toast/toast.compo
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent {
-  private readonly teamStore =
-    inject(TeamStore);
+  private readonly teamStore = inject(TeamStore);
+  private readonly destroyRef = inject(DestroyRef);
 
-  private readonly destroyRef =
-    inject(DestroyRef);
+  readonly toastMessage = signal('');
+  readonly toastType = signal<ToastType>('success');
 
-  readonly toastMessage =
-    signal('');
-
-  readonly toastType =
-    signal<ToastType>('success');
+  private toastTimer: any = null;
 
   constructor() {
     // Listen for mutation errors
@@ -75,12 +71,26 @@ export class AppComponent {
     this.teamStore.createTeam(team);
   }
 
-  private showToast( message: string, type: ToastType): void {
+  showToast(message: string, type: ToastType): void {
+    // Clear any existing active timer so toasts don't cut each other off prematurely
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer);
+    }
+
     this.toastMessage.set(message);
     this.toastType.set(type);
+
+    // Automatically hide the toast after 4 seconds
+    this.toastTimer = setTimeout(() => {
+      this.clearToast();
+    }, 4000);
   }
 
   clearToast(): void {
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer);
+      this.toastTimer = null;
+    }
     this.toastMessage.set('');
   }
 }

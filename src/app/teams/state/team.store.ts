@@ -208,4 +208,8 @@ export class TeamStore {
         );
       });
   }
+
+  setError(message: string): void {
+    this.mutationErrorSubject.next(message);
+  }
 }
