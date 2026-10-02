@@ -5,7 +5,7 @@ import { PokemonTableComponent } from './pokedex/components/pokemon-table/pokemo
 import { SpecimenPanelComponent } from './pokedex/components/specimen-panel/specimen-panel.component';
 import { TeamTrayComponent } from './teams/components/team-tray/team-tray.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
-import { Pokemon, POKEMON } from './pokedex/models/pokemon.model';
+import { Pokemon } from './pokedex/models/pokemon.model';
 
 @Component({ selector: 'app-root', standalone: true, imports: [HeaderComponent, PokedexToolbarComponent, PokemonTableComponent, SpecimenPanelComponent, TeamTrayComponent, ToastComponent], template: `
   <div class="app-viewport">
@@ -22,12 +22,12 @@ import { Pokemon, POKEMON } from './pokedex/models/pokemon.model';
   </div>
 ` })
 export class AppComponent {
-  readonly allPokemon = POKEMON;
+  allPokemon: Pokemon[] = [];
   search = '';
   type = 'all';
-  selected: Pokemon | null = POKEMON[2];
-  team: Pokemon[] = [POKEMON[5], POKEMON[8], POKEMON[7]];
-  toastMessage = 'Venusaur specimen loaded';
+  selected: Pokemon | null = null;
+  team: Pokemon[] = [];
+  toastMessage = 'Data loaded';
 
   get filteredPokemon(): Pokemon[] {
     const query = this.search.trim().toLowerCase();
