@@ -107,7 +107,7 @@ export class TeamService {
   /**
    * Deletes a team by its ID via GraphQL mutation.
    */
-  deleteTeam(teamId: string): Observable<unknown> {
+  deleteTeam(teamId: string): Observable<void> {
     const mutation = `
       mutation RemoveTeam($id: ID!) {
         removeTeam(id: $id) {
@@ -118,10 +118,13 @@ export class TeamService {
 
     const variables = { id: teamId };
 
-    return this.#http.post<GraphQLResponse<unknown>>(this.#graphqlUrl, {
-      query: mutation,
-      variables
-    }).pipe(
+    return this.#http.post<GraphQLResponse<unknown>>(
+      this.#graphqlUrl,
+      {
+        query: mutation,
+        variables
+      }
+    ).pipe(
       map(response => {
         if (response.errors && response.errors.length > 0) {
           throw new Error(response.errors[0].message);
@@ -131,8 +134,23 @@ export class TeamService {
           throw new Error('Failed to delete team: missing data response from server');
         }
 
-        return response.data;
+        return;
       })
+    );
+  }
+
+  /**
+   * Checks if a team name already exists via the GraphQL backend (case-insensitive).
+   */
+  teamNameExists(name: string): Observable<boolean> {
+    const normalizedTarget = name.trim().toLowerCase();
+
+    return this.getTeams().pipe(
+      map(teams => 
+        teams.some(
+          team => team.name.trim().toLowerCase() === normalizedTarget
+        )
+      )
     );
   }
 }
