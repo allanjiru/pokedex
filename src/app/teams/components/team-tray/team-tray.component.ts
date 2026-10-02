@@ -17,7 +17,7 @@ import {
         <label class="team-tray__label" for="team-name">Team Name</label>
           <input id="team-name" class="team-tray__name-input" [value]="teamName" (input)="teamName = $any($event.target).value" placeholder="e.g. Hyper Offense"/>
       </div>
-      <div class="team-tray__center">
+        <div class="team-tray__center">
         <div class="pokemon-picker">
           <span>⌕</span>
           <input class="pokemon-picker__input" placeholder="Add Pokémon to team by name or ID..." (keydown.enter)="search($any($event.target).value)"/>
