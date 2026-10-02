@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { Pokemon, typeClass } from '../../../models';
+import { Pokemon } from '../../models/pokemon.model';
+import { typeClass } from '../../utils/pokemon.utils';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 
 @Component({ selector: 'app-pokemon-table', standalone: true, imports: [PaginationComponent], template: `

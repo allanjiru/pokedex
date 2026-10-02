@@ -5,7 +5,7 @@ import { PokemonTableComponent } from './pokedex/components/pokemon-table/pokemo
 import { SpecimenPanelComponent } from './pokedex/components/specimen-panel/specimen-panel.component';
 import { TeamTrayComponent } from './teams/components/team-tray/team-tray.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
-import { Pokemon, POKEMON } from './models';
+import { Pokemon, POKEMON } from './pokedex/models/pokemon.model';
 
 @Component({ selector: 'app-root', standalone: true, imports: [HeaderComponent, PokedexToolbarComponent, PokemonTableComponent, SpecimenPanelComponent, TeamTrayComponent, ToastComponent], template: `
   <div class="app-viewport">
