@@ -36,7 +36,7 @@ export class PokemonSelectors {
   private readonly pageSubject = new BehaviorSubject<number>(1);
   readonly page$ = this.pageSubject.asObservable();
 
-  private readonly pageSizeSubject = new BehaviorSubject<number>(20);
+  private readonly pageSizeSubject = new BehaviorSubject<number>(10);
   readonly pageSize$ = this.pageSizeSubject.asObservable();
 
   // --- Selection State Triggers ---

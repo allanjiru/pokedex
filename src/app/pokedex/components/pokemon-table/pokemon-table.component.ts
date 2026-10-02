@@ -13,38 +13,37 @@ import { SortKey } from '../../state/pokemon.selectors';
       <div class="pokemon-table-card">
         <div class="pokemon-table-card__scroll-container">
           <table class="pokemon-table">
-            <thead>
+            <thead class="pokemon-table__head">
               <tr>
                 <th class="pokemon-table__th sprite-col">Sprite</th>
                 <th class="pokemon-table__th sortable" (click)="sort.emit('name')">Name ↕</th>
                 <th class="pokemon-table__th">Types</th>
-                <th class="pokemon-table__th numeric" (click)="sort.emit('hp')">HP ↕</th>
-                <th class="pokemon-table__th numeric" (click)="sort.emit('attack')">ATK ↕</th>
-                <th class="pokemon-table__th numeric" (click)="sort.emit('defense')">DEF ↕</th>
-                <th class="pokemon-table__th numeric" (click)="sort.emit('specialAttack')">SPA ↕</th>
-                <th class="pokemon-table__th numeric" (click)="sort.emit('specialDefense')">SPD ↕</th>
-                <th class="pokemon-table__th numeric" (click)="sort.emit('speed')">SPE ↕</th>
-                <th class="pokemon-table__th numeric" (click)="sort.emit('total')">TOTAL ↕</th>
+                <th class="pokemon-table__th sortable" (click)="sort.emit('hp')">HP ↕</th>
+                <th class="pokemon-table__th sortable" (click)="sort.emit('attack')">ATK ↕</th>
+                <th class="pokemon-table__th sortable" (click)="sort.emit('defense')">DEF ↕</th>
+                <th class="pokemon-table__th sortable" (click)="sort.emit('specialAttack')">SPA ↕</th>
+                <th class="pokemon-table__th sortable" (click)="sort.emit('specialDefense')">SPD ↕</th>
+                <th class="pokemon-table__th sortable" (click)="sort.emit('speed')">SPE ↕</th>
+                <th class="pokemon-table__th sortable" (click)="sort.emit('total')">TOTAL ↕</th>
                 <th></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody class="pokemon-table__tbody">
             @for (pokemon of pokemon(); track pokemon.id) { 
               <tr class="pokemon-table__row" [class.pokemon-table__row--selected]="selected()?.id === pokemon.id" (click)="selectedChange.emit(pokemon)">
-                <td class="pokemon-table__td">
+                <td class="pokemon-table__td pokemon-table__td--sprite">
                   <img class="pokemon-table__sprite-img" [src]="pokemon.sprite" [alt]="pokemon.name"/>
                 </td>
-                <td class="pokemon-table__td">
+                <td class="pokemon-table__td pokemon-table__td--name">
                   <span class="pokemon-table__species-name">{{ pokemon.name }}</span>
-                  <span class="pokemon-table__species-id">#{{ pokemon.id.toString().padStart(3, '0') }}</span>
                 </td>
-                <td class="pokemon-table__td">
+                <td class="pokemon-table__td pokemon-table__td--types">
                   <span class="pokemon-table__types-wrapper">
                     @for (type of pokemon.types; track type) { 
                       <span class="type-badge" [class]="typeClass(type)">{{ type }}</span> }</span>
                 </td>
                 @for (stat of statKeys; track stat) { 
-                  <td class="pokemon-table__td numeric">
+                  <td class="pokemon-table__td pokemon-table__td--numeric">
                     {{ stat === 'total' ? total(pokemon) : pokemon.stats[stat] }}
                   </td> }
                   <td class="pokemon-table__td">

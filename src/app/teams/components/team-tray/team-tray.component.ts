@@ -14,7 +14,7 @@ import {
   <div class="team-tray">
     <div class="team-tray__main">
       <div class="team-tray__left">
-        <label for="team-name">Team Name</label>
+        <label class="team-tray__label" for="team-name">Team Name</label>
           <input id="team-name" class="team-tray__name-input" [value]="teamName" (input)="teamName = $any($event.target).value" placeholder="e.g. Hyper Offense"/>
       </div>
       <div class="team-tray__center">

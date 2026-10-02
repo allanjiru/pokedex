@@ -11,13 +11,13 @@ import { Component, ChangeDetectionStrategy, input, output } from '@angular/core
       </span>
       <div class="pagination__controls">
         <select 
-          class="pagination__size-selector" 
-          [value]="pageSize()" 
+          class="pokedex-toolbar__page-size"
+          [value]="pageSize().toString()" 
           aria-label="Items per page"
           (change)="onPageSizeChange($event)">
-          <option [value]="10">10</option>
-          <option [value]="25">25</option>
-          <option [value]="50">50</option>
+          <option value="10">10 per page</option>
+          <option value="25">25 per page</option>
+          <option value="50">50 per page</option>
         </select>
 
         <button 
@@ -55,7 +55,7 @@ export class PaginationComponent {
 
   readonly total = input<number>(0);
   readonly page = input<number>(1);
-  readonly pageSize = input<number>(20);
+  readonly pageSize = input<number>(10);
 
   readonly pageChange = output<number>();
   readonly pageSizeChange = output<number>();

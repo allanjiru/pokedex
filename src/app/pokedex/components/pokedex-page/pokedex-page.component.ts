@@ -20,6 +20,8 @@ import { Pokemon } from '../../models/pokemon.model';
     <section class="app-workspace__catalog">
       <app-pokedex-toolbar 
         [totalResults]="totalCount()" 
+        [pageSize]="pageSize()"
+        (pageSizeChanged)="onPageSizeChange($event)"
         (searchChanged)="onSearchChanged($event)" 
         (typeChanged)="onTypeChanged($event)" 
       />
@@ -88,7 +90,7 @@ export class PokedexPageComponent implements OnInit {
   readonly paginatedPokemon = toSignal(this.selectors.paginatedPokemon$, { initialValue: [] });
   readonly totalCount = toSignal(this.selectors.totalCount$, { initialValue: 0 });
   readonly page = toSignal(this.selectors.page$, { initialValue: 1 });
-  readonly pageSize = toSignal(this.selectors.pageSize$, { initialValue: 20 });
+  readonly pageSize = toSignal(this.selectors.pageSize$, { initialValue: 10 });
   
   // Derived fully-hydrated specimen from selectors stream via cache bridge
   readonly selectedPokemon = toSignal(this.selectors.selectedPokemon$, { initialValue: null });

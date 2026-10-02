@@ -27,10 +27,10 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
         <div class="pokedex-toolbar__right">
             <span class="pokedex-toolbar__counter">Showing 1-{{ Math.min(pageSize, totalResults) }} of {{ totalResults || 0 }}</span>
             <div class="pokedex-toolbar__select-wrapper">
-                <select class="pokedex-toolbar__page-size" [(value)]="pageSize">
-                    <option [value]="10">10 per page</option>
-                    <option [value]="25">25 per page</option>
-                    <option [value]="50">50 per page</option>
+                <select class="pokedex-toolbar__page-size" [value]="pageSize.toString()" (change)="onPageSizeChange($event)">
+                    <option value="10">10 per page</option>
+                    <option value="25">25 per page</option>
+                    <option value="50">50 per page</option>
                 </select>
             </div>
         </div>
@@ -39,14 +39,23 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 })
 export class PokedexToolbarComponent {
     @Input() totalResults = 0;
+    @Input() pageSize = 10;
+
     @Output() searchChanged = new EventEmitter < string > ();
     @Output() typeChanged = new EventEmitter < string > ();
+    @Output() pageSizeChanged = new EventEmitter<number>();
+
     search = '';
     selectedType = 'all';
-    pageSize = 10;
     Math = Math;
+
     onSearch(value: string): void {
         this.search = value;
         this.searchChanged.emit(value);
+    }
+
+    onPageSizeChange(event: Event): void {
+        const value = Number((event.target as HTMLSelectElement).value);
+        this.pageSizeChanged.emit(value);
     }
 }

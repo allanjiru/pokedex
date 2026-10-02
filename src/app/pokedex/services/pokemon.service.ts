@@ -18,7 +18,7 @@ export class PokemonService {
   /**
    * Fetch a paginated list of Pokémon using the specified query structure.
    */
-  getPokemonList(offset: number = 0, limit: number = 20): Observable<Pokemon[]> {
+  getPokemonList(offset: number = 0, limit: number = 10): Observable<Pokemon[]> {
     const query = `
       query GetPokemonList($limit: Int, $offset: Int) {
         pokemon_v2_pokemon(limit: $limit, offset: $offset, order_by: { id: asc }) {
@@ -138,18 +138,26 @@ export class PokemonService {
   /**
    * Helper to safely extract the official artwork or front default sprite from the JSON structure.
    */
-  private extractSprite(spritesObjArray: any[]): string {
-    if (!spritesObjArray || spritesObjArray.length === 0) {
-      return '';
+  private extractSprite(spritesObjArray: any[], id?: number): string {
+    if (spritesObjArray?.length) {
+      try {
+        const rawSprites = spritesObjArray[0]?.sprites;
+        const spritesJson =
+          typeof rawSprites === 'string'
+            ? JSON.parse(rawSprites)
+            : rawSprites;
+
+        const sprite =
+          spritesJson?.other?.['official-artwork']?.front_default ??
+          spritesJson?.front_default;
+
+        if (sprite) return sprite;
+      } catch {}
     }
-    try {
-      const spritesJson = JSON.parse(spritesObjArray[0].sprites);
-      return spritesJson.other?.['official-artwork']?.front_default 
-        ?? spritesJson.front_default 
-        ?? '';
-    } catch {
-      return '';
-    }
+
+    return id
+      ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
+      : '';
   }
 
   /**
