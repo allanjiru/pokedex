@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { Pokemon, typeClass } from '../models';
-import { PaginationComponent } from '../pagination/pagination.component';
+import { Pokemon, typeClass } from '../../../models';
+import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 
 @Component({ selector: 'app-pokemon-table', standalone: true, imports: [PaginationComponent], template: `
   <div class="pokemon-table-card"><div class="pokemon-table-card__scroll-container"><table class="pokemon-table"><thead><tr><th class="pokemon-table__th sprite-col">Sprite</th><th class="pokemon-table__th sortable" (click)="sortBy('name')">Name ↕</th><th class="pokemon-table__th">Types</th><th class="pokemon-table__th numeric" (click)="sortBy('hp')">HP ↕</th><th class="pokemon-table__th numeric" (click)="sortBy('atk')">ATK ↕</th><th class="pokemon-table__th numeric" (click)="sortBy('def')">DEF ↕</th><th class="pokemon-table__th numeric" (click)="sortBy('spa')">SPA ↕</th><th class="pokemon-table__th numeric" (click)="sortBy('spd')">SPD ↕</th><th class="pokemon-table__th numeric" (click)="sortBy('spe')">SPE ↕</th><th class="pokemon-table__th numeric" (click)="sortBy('total')">TOTAL ↕</th><th></th></tr></thead><tbody>
