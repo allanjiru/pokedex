@@ -1,104 +1,101 @@
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { Pokemon } from '../models/pokemon.model';
-import { PokemonService } from '../services/pokemon.service';
+import { PokemonService, PaginatedPokemonResponse } from '../services/pokemon.service';
 
 export type ResourceStatus = 'idle' | 'loading' | 'success' | 'error';
 
 export interface ResourceState {
-  status: ResourceStatus;
-  error: string | null;
+  readonly status: ResourceStatus;
+  readonly error: string | null;
 }
 
 export interface DetailResourceState extends ResourceState {
-  pokemonId: number | null;
+  readonly pokemonId: number | null;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class PokemonStore {
-  private readonly pokemonService = inject(PokemonService);
+  readonly #pokemonService = inject(PokemonService);
 
-  // --- State Subjects (Private) ---
-  private readonly cacheSubject = new BehaviorSubject<Map<number, Pokemon>>(new Map());
-  private readonly listStateSubject = new BehaviorSubject<ResourceState>({
+  // --- State Subjects ---
+  readonly #cacheSubject = new BehaviorSubject<Map<number, Pokemon>>(new Map());
+  readonly cache$: Observable<Map<number, Pokemon>> = this.#cacheSubject.asObservable();
+
+  readonly #totalCountSubject = new BehaviorSubject<number>(0);
+  readonly totalCount$: Observable<number> = this.#totalCountSubject.asObservable();
+
+  readonly #listStateSubject = new BehaviorSubject<ResourceState>({
     status: 'idle',
     error: null
   });
-  private readonly detailStateSubject = new BehaviorSubject<DetailResourceState>({
-    status: 'idle',
-    pokemonId: null,
-    error: null
-  });
+  readonly listState$: Observable<ResourceState> = this.#listStateSubject.asObservable();
 
-  // --- Read-only Public Observables ---
-  readonly cache$: Observable<Map<number, Pokemon>> = this.cacheSubject.asObservable();
-  readonly listState$: Observable<ResourceState> = this.listStateSubject.asObservable();
-  readonly detailState$: Observable<DetailResourceState> = this.detailStateSubject.asObservable();
+  readonly #detailStateSubject = new BehaviorSubject<DetailResourceState>({
+    status: 'idle',
+    error: null,
+    pokemonId: null
+  });
+  readonly detailState$: Observable<DetailResourceState> = this.#detailStateSubject.asObservable();
 
   /**
-   * Load a paginated list of Pokémon.
-   * Merges results into the cache immutably without losing previously fetched data.
+   * Loads a page of Pokémon from the API using offset and limit,
+   * updating the cache, authoritative total count, and list state.
    */
-  loadPokemon(offset: number = 0, limit: number = 20): void {
-    this.listStateSubject.next({ status: 'loading', error: null });
+  loadPokemon(offset: number, limit: number): void {
+    this.#listStateSubject.next({ status: 'loading', error: null });
 
-    this.pokemonService.getPokemonList(offset, limit).subscribe({
-      next: (fetchedPokemonList) => {
-        const updatedCache = new Map(this.cacheSubject.value);
-        
-        fetchedPokemonList.forEach((pokemon) => {
-          const existing = updatedCache.get(pokemon.id);
-          if (existing && existing.abilities && !pokemon.abilities) {
-            updatedCache.set(pokemon.id, { ...pokemon, abilities: existing.abilities });
+    this.#pokemonService.getPokemonList(offset, limit).subscribe({
+      next: (response: PaginatedPokemonResponse) => {
+        const currentCache = new Map(this.#cacheSubject.value);
+
+        for (const p of response.pokemon) {
+          const existing = currentCache.get(p.id);
+          // Narrowly preserve existing detailed abilities if the list response doesn't provide them
+          if (existing && existing.abilities && existing.abilities.length > 0 && (!p.abilities || p.abilities.length === 0)) {
+            currentCache.set(p.id, {
+              ...p,
+              abilities: existing.abilities
+            });
           } else {
-            updatedCache.set(pokemon.id, pokemon);
+            currentCache.set(p.id, p);
           }
-        });
+        }
 
-        this.cacheSubject.next(updatedCache);
-        this.listStateSubject.next({ status: 'success', error: null });
+        this.#cacheSubject.next(currentCache);
+        this.#totalCountSubject.next(response.totalCount);
+        this.#listStateSubject.next({ status: 'success', error: null });
       },
       error: (err) => {
-        this.listStateSubject.next({
-          status: 'error',
-          error: err?.message ?? 'Failed to load Pokémon list.'
+        this.#listStateSubject.next({ 
+          status: 'error', 
+          error: err?.message || 'Failed to load Pokémon catalog' 
         });
       }
     });
   }
 
   /**
-   * Load a single Pokémon by ID for the detail view.
-   * Checks the cache first; skips fetching if full detail (abilities) is already present.
-   * Explicitly tracks the pokemonId so consumers can identify stale detail states.
+   * Loads a single Pokémon's fully hydrated details by ID.
    */
   loadPokemonById(id: number): void {
-    const currentCache = this.cacheSubject.value;
-    const cachedPokemon = currentCache.get(id);
+    this.#detailStateSubject.next({ status: 'loading', error: null, pokemonId: id });
 
-    // If already in cache and has detail-level data (abilities), reuse it
-    if (cachedPokemon && cachedPokemon.abilities !== undefined) {
-      this.detailStateSubject.next({ status: 'success', pokemonId: id, error: null });
-      return;
-    }
+    this.#pokemonService.getPokemonById(id).subscribe({
+      next: (detailedPokemon) => {
+        const currentCache = new Map(this.#cacheSubject.value);
+        currentCache.set(id, detailedPokemon);
+        this.#cacheSubject.next(currentCache);
 
-    this.detailStateSubject.next({ status: 'loading', pokemonId: id, error: null });
-
-    this.pokemonService.getPokemonById(id).subscribe({
-      next: (pokemonDetail) => {
-        const updatedCache = new Map(this.cacheSubject.value);
-        updatedCache.set(pokemonDetail.id, pokemonDetail);
-
-        this.cacheSubject.next(updatedCache);
-        this.detailStateSubject.next({ status: 'success', pokemonId: id, error: null });
+        this.#detailStateSubject.next({ status: 'success', error: null, pokemonId: id });
       },
       error: (err) => {
-        this.detailStateSubject.next({
-          status: 'error',
-          pokemonId: id,
-          error: err?.message ?? `Failed to load Pokémon with ID ${id}.`
+        this.#detailStateSubject.next({ 
+          status: 'error', 
+          error: err?.message || `Failed to load Pokémon #${id}`, 
+          pokemonId: id 
         });
       }
     });

@@ -18,37 +18,37 @@ export type SortKey = 'id' | 'name' | 'hp' | 'attack' | 'defense' | 'specialAtta
   providedIn: 'root'
 })
 export class PokemonSelectors {
-  private readonly store = inject(PokemonStore);
+  readonly #store = inject(PokemonStore);
 
   // --- State Triggers ---
-  private readonly searchSubject = new BehaviorSubject<string>('');
-  readonly searchTerm$ = this.searchSubject.asObservable();
+  readonly #searchSubject = new BehaviorSubject<string>('');
+  readonly searchTerm$ = this.#searchSubject.asObservable();
 
-  private readonly typeFilterSubject = new BehaviorSubject<string>('all');
-  readonly typeFilter$ = this.typeFilterSubject.asObservable();
+  readonly #typeFilterSubject = new BehaviorSubject<string>('all');
+  readonly typeFilter$ = this.#typeFilterSubject.asObservable();
 
-  private readonly sortKeySubject = new BehaviorSubject<SortKey>('id');
-  readonly sortKey$ = this.sortKeySubject.asObservable();
+  readonly #sortKeySubject = new BehaviorSubject<SortKey>('id');
+  readonly sortKey$ = this.#sortKeySubject.asObservable();
 
-  private readonly sortDirectionSubject = new BehaviorSubject<'asc' | 'desc'>('asc');
-  readonly sortDirection$ = this.sortDirectionSubject.asObservable();
+  readonly #sortDirectionSubject = new BehaviorSubject<'asc' | 'desc'>('asc');
+  readonly sortDirection$ = this.#sortDirectionSubject.asObservable();
 
-  private readonly pageSubject = new BehaviorSubject<number>(1);
-  readonly page$ = this.pageSubject.asObservable();
+  readonly #pageSubject = new BehaviorSubject<number>(1);
+  readonly page$ = this.#pageSubject.asObservable().pipe(distinctUntilChanged());
 
-  private readonly pageSizeSubject = new BehaviorSubject<number>(10);
-  readonly pageSize$ = this.pageSizeSubject.asObservable();
+  readonly #pageSizeSubject = new BehaviorSubject<number>(10);
+  readonly pageSize$ = this.#pageSizeSubject.asObservable().pipe(distinctUntilChanged());
 
   // --- Selection State Triggers ---
-  private readonly selectedIdSubject = new BehaviorSubject<number | null>(null);
-  readonly selectedId$ = this.selectedIdSubject.asObservable();
+  readonly #selectedIdSubject = new BehaviorSubject<number | null>(null);
+  readonly selectedId$ = this.#selectedIdSubject.asObservable();
 
   /**
    * Combines the store cache and the selected ID to yield the fully hydrated
    * Pokémon from the cache, updating automatically when detail requests complete.
    */
   readonly selectedPokemon$: Observable<Pokemon | null> = combineLatest([
-    this.store.cache$,
+    this.#store.cache$,
     this.selectedId$
   ]).pipe(
     map(([cache, id]) => {
@@ -62,7 +62,7 @@ export class PokemonSelectors {
    * Step 1: Convert the Map cache into a Pokemon array stream.
    * Emits whenever the store replaces the cache reference (guaranteeing detail updates propagate).
    */
-  readonly allCachedPokemon$: Observable<Pokemon[]> = this.store.cache$.pipe(
+  readonly allCachedPokemon$: Observable<Pokemon[]> = this.#store.cache$.pipe(
     map(cacheMap => Array.from(cacheMap.values())),
     shareReplay(1)
   );
@@ -122,7 +122,7 @@ export class PokemonSelectors {
           bVal = b.name;
         } else if (sortKey === 'id') {
           aVal = a.id;
-          bVal = b.id; // Fixed: comparing against b.id
+          bVal = b.id;
         } else if (sortKey === 'total') {
           aVal = Object.values(a.stats).reduce((sum, v) => sum + v, 0);
           bVal = Object.values(b.stats).reduce((sum, v) => sum + v, 0);
@@ -140,58 +140,47 @@ export class PokemonSelectors {
   );
 
   /**
-   * Step 5 & 6: Total count stream and final paginated table view.
+   * Authoritative total count stream from the store for remote pagination UI.
    */
-  readonly totalCount$: Observable<number> = this.sortedPokemon$.pipe(
-    map(list => list.length),
-    distinctUntilChanged(),
-    shareReplay(1)
-  );
+  readonly totalCount$: Observable<number> = this.#store.totalCount$;
 
-  readonly paginatedPokemon$: Observable<Pokemon[]> = combineLatest([
-    this.sortedPokemon$,
-    this.page$.pipe(distinctUntilChanged()),
-    this.pageSize$.pipe(distinctUntilChanged())
-  ]).pipe(
-    map(([sortedList, page, pageSize]) => {
-      const startIndex = (page - 1) * pageSize;
-      return sortedList.slice(startIndex, startIndex + pageSize);
-    }),
-    shareReplay(1)
-  );
+  /**
+   * Represents the current API-paginated page after client-side transformations (search/filter/sort).
+   */
+  readonly paginatedPokemon$: Observable<Pokemon[]> = this.sortedPokemon$;
 
   // --- Component Action Dispatchers ---
 
   updateSearchTerm(term: string): void {
-    this.searchSubject.next(term);
-    this.pageSubject.next(1);
+    this.#searchSubject.next(term);
+    this.#pageSubject.next(1);
   }
 
   updateTypeFilter(type: string): void {
-    this.typeFilterSubject.next(type);
-    this.pageSubject.next(1);
+    this.#typeFilterSubject.next(type);
+    this.#pageSubject.next(1);
   }
 
   updateSorting(key: SortKey): void {
-    if (this.sortKeySubject.value === key) {
-      const newDir = this.sortDirectionSubject.value === 'asc' ? 'desc' : 'asc';
-      this.sortDirectionSubject.next(newDir);
+    if (this.#sortKeySubject.value === key) {
+      const newDir = this.#sortDirectionSubject.value === 'asc' ? 'desc' : 'asc';
+      this.#sortDirectionSubject.next(newDir);
     } else {
-      this.sortKeySubject.next(key);
-      this.sortDirectionSubject.next('asc');
+      this.#sortKeySubject.next(key);
+      this.#sortDirectionSubject.next('asc');
     }
   }
 
   updatePage(page: number): void {
-    this.pageSubject.next(page);
+    this.#pageSubject.next(page);
   }
 
   updatePageSize(size: number): void {
-    this.pageSizeSubject.next(size);
-    this.pageSubject.next(1);
+    this.#pageSizeSubject.next(size);
+    this.#pageSubject.next(1);
   }
 
   updateSelectedId(id: number | null): void {
-    this.selectedIdSubject.next(id);
+    this.#selectedIdSubject.next(id);
   }
 }

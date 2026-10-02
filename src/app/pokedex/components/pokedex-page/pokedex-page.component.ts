@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, OnInit, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, effect } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { PokedexToolbarComponent } from '../pokedex-toolbar/pokedex-toolbar.component';
 import { PokemonTableComponent } from '../pokemon-table/pokemon-table.component';
@@ -20,6 +20,7 @@ import { Pokemon } from '../../models/pokemon.model';
     <section class="app-workspace__catalog">
       <app-pokedex-toolbar 
         [totalResults]="totalCount()" 
+        [page]="page()"
         [pageSize]="pageSize()"
         (pageSizeChanged)="onPageSizeChange($event)"
         (searchChanged)="onSearchChanged($event)" 
@@ -39,7 +40,7 @@ import { Pokemon } from '../../models/pokemon.model';
             <button class="pokemon-table__add-btn" (click)="retryCatalog()">Retry</button>
           </div>
         </div>
-      } @else if (listState().status === 'success' && totalCount() === 0) {
+      } @else if (listState().status === 'success' && paginatedPokemon().length === 0) {
         <div class="pokemon-table-card">
           <div class="pokemon-table-card__scroll-container pokemon-state-container">
             <p>No Pokémon found matching your criteria.</p>
@@ -82,7 +83,7 @@ import { Pokemon } from '../../models/pokemon.model';
     }
   `]
 })
-export class PokedexPageComponent implements OnInit {
+export class PokedexPageComponent {
   private readonly selectors = inject(PokemonSelectors);
   private readonly store = inject(PokemonStore);
 
@@ -107,8 +108,13 @@ export class PokedexPageComponent implements OnInit {
   // --- Local UI State Signals ---
   readonly isPanelOpen = signal<boolean>(false);
 
-  ngOnInit(): void {
-    this.store.loadPokemon(0, 50);
+  constructor() {
+    effect(() => {
+      const currentPage = this.page();
+      const currentSize = this.pageSize();
+      const offset = (currentPage - 1) * currentSize;
+      this.store.loadPokemon(offset, currentSize);
+    });
   }
 
   // --- Interaction Handlers ---
@@ -144,7 +150,8 @@ export class PokedexPageComponent implements OnInit {
   }
 
   retryCatalog(): void {
-    this.store.loadPokemon(0, 50);
+    const offset = (this.page() - 1) * this.pageSize();
+    this.store.loadPokemon(offset, this.pageSize());
   }
 
   onRetryDetail(): void {

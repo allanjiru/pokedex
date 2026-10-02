@@ -1,18 +1,18 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, input, output, computed } from '@angular/core';
 
 @Component({
     selector: 'app-pokedex-toolbar',
     standalone: true,
-    template: 
-    `<div class="pokedex-toolbar">
+    template: `
+    <div class="pokedex-toolbar">
         <div class="pokedex-toolbar__left">
             <div class="pokedex-toolbar__search-wrapper">
                 <span class="pokedex-toolbar__search-icon">⌕</span>
-                <input class="pokedex-toolbar__search-input" placeholder="Search by name" [value]="search" (input)="onSearch($any($event.target).value)"/>
-                <button aria-label="Clear search" class="pokedex-toolbar__clear-button" (click)="onSearch('')">×</button>
+                <input class="pokedex-toolbar__search-input" placeholder="Search by name" [value]="search" (input)="onSearch($event)"/>
+                <button aria-label="Clear search" class="pokedex-toolbar__clear-button" (click)="onClearSearch()">×</button>
             </div>
             <div class="pokedex-toolbar__select-wrapper">
-                <select class="pokedex-toolbar__select" [value]="selectedType" (change)="selectedType = $any($event.target).value; typeChanged.emit(selectedType)">
+                <select class="pokedex-toolbar__select" [value]="selectedType" (change)="onTypeChange($event)">
                     <option value="all">All types</option>
                     <option value="grass">Grass</option>
                     <option value="fire">Fire</option>
@@ -25,9 +25,9 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
             </div>
         </div>
         <div class="pokedex-toolbar__right">
-            <span class="pokedex-toolbar__counter">Showing 1-{{ Math.min(pageSize, totalResults) }} of {{ totalResults || 0 }}</span>
+            <span class="pokedex-toolbar__counter">{{ counterText() }}</span>
             <div class="pokedex-toolbar__select-wrapper">
-                <select class="pokedex-toolbar__page-size" [value]="pageSize.toString()" (change)="onPageSizeChange($event)">
+                <select class="pokedex-toolbar__page-size" [value]="pageSize().toString()" (change)="onPageSizeChange($event)">
                     <option value="10">10 per page</option>
                     <option value="25">25 per page</option>
                     <option value="50">50 per page</option>
@@ -38,20 +38,43 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
     `
 })
 export class PokedexToolbarComponent {
-    @Input() totalResults = 0;
-    @Input() pageSize = 10;
+    readonly totalResults = input<number>(0);
+    readonly pageSize = input<number>(10);
 
-    @Output() searchChanged = new EventEmitter < string > ();
-    @Output() typeChanged = new EventEmitter < string > ();
-    @Output() pageSizeChanged = new EventEmitter<number>();
+    readonly searchChanged = output<string>();
+    readonly typeChanged = output<string>();
+    readonly pageSizeChanged = output<number>();
 
     search = '';
     selectedType = 'all';
-    Math = Math;
 
-    onSearch(value: string): void {
+    readonly counterText = computed(() => {
+        const total = this.totalResults();
+        if (total === 0) {
+            return 'Showing 0 of 0';
+        }
+        const currentSize = this.pageSize();
+        const currentPage = this.page();
+        const start = (currentPage - 1) * currentSize + 1;
+        const end = Math.min(currentPage * currentSize, total);
+        return `Showing ${start}-${end} of ${total}`;
+    });
+
+    onSearch(event: Event): void {
+        const value = (event.target as HTMLInputElement).value;
         this.search = value;
         this.searchChanged.emit(value);
+    }
+
+    onClearSearch(): void {
+        this.search = '';
+        this.searchChanged.emit('');
+    }
+
+    onTypeChange(event: Event): void {
+        const value = (event.target as HTMLSelectElement).value;
+        this.selectedType = value;
+        this.typeChanged.emit(value);
     }
 
     onPageSizeChange(event: Event): void {
