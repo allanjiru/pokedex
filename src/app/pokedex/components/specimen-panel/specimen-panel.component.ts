@@ -2,7 +2,61 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { Pokemon } from '../../models/pokemon.model';
 import { typeClass } from '../../utils/pokemon.utils';
 import { StatRadarComponent } from '../stat-radar/stat-radar.component';
-@Component({ selector: 'app-specimen-panel', standalone: true, imports: [StatRadarComponent], template: `
-  @if (pokemon) { <aside class="detail-panel"><div class="detail-panel__header"><button class="detail-panel__back-btn" title="Close Panel" (click)="close.emit()">←</button><span class="detail-panel__title">Specimen Details</span></div><div class="detail-panel__body"><div class="detail-panel__hero"><div class="detail-panel__sprite-box"><img class="detail-panel__sprite-img" [src]="pokemon.sprite" [alt]="pokemon.name"/></div><h2 class="detail-panel__name">{{ pokemon.name }} #{{ pokemon.id.toString().padStart(3, '0') }}</h2><div class="detail-panel__types">@for (type of pokemon.types; track type) { <span class="type-badge" [class]="typeClass(type)">{{ type }}</span> }</div></div><div class="detail-panel__vitals-grid"><div class="detail-panel__vital-card"><span>Height</span><strong>2.0 m</strong></div><div class="detail-panel__vital-card"><span>Weight</span><strong>100.0 kg</strong></div></div><div class="detail-panel__section"><app-stat-radar [pokemon]="pokemon" /></div><div class="detail-panel__section"><span class="detail-panel__section-title">Abilities</span><div class="detail-panel__abilities-list"><div class="detail-panel__ability-card"><strong>Overgrow</strong><p>Powers up Grass-type moves when the Pokémon's HP falls below 33%.</p></div><div class="detail-panel__ability-card"><strong>Chlorophyll</strong><span class="detail-panel__hidden-badge">Hidden</span><p>Boosts the Pokémon's Speed stat in harsh sunlight conditions.</p></div></div></div></div></aside> }
-` })
-export class SpecimenPanelComponent { @Input() pokemon: Pokemon | null = null; @Output() close = new EventEmitter<void>(); typeClass = typeClass; }
+@Component({
+    selector: 'app-specimen-panel',
+    standalone: true,
+    imports: [StatRadarComponent],
+    template: `
+      @if (pokemon) { 
+      <aside class="detail-panel">
+            <div class="detail-panel__header">
+              <button class="detail-panel__back-btn" title="Close Panel" (click)="close.emit()">←</button>
+              <span class="detail-panel__title">Specimen Details</span>
+            </div>
+            <div class="detail-panel__body">
+              <div class="detail-panel__hero">
+                <div class="detail-panel__sprite-box">
+                  <img class="detail-panel__sprite-img" [src]="pokemon.sprite" [alt]="pokemon.name"/>
+                </div>
+                <h2 class="detail-panel__name">{{ pokemon.name }} #{{ pokemon.id.toString().padStart(3, '0') }}</h2>
+                <div class="detail-panel__types">
+                  @for (type of pokemon.types; track type) { 
+                    <span class="type-badge" [class]="typeClass(type)">{{ type }}</span> 
+                  }
+                </div>
+              </div>
+              <div class="detail-panel__vitals-grid">
+                <div class="detail-panel__vital-card">
+                  <span>Height</span>
+                  <strong>2.0 m</strong>
+                </div>
+                <div class="detail-panel__vital-card">
+                  <span>Weight</span>
+                  <strong>100.0 kg</strong>
+                </div>
+              </div>
+              <div class="detail-panel__section">
+                <app-stat-radar [pokemon]="pokemon" />
+              </div>
+              <div class="detail-panel__section">
+                <span class="detail-panel__section-title">Abilities</span>
+                <div class="detail-panel__abilities-list">
+                <div class="detail-panel__ability-card">
+                <strong>Overgrow</strong>
+                <p>Powers up Grass-type moves when the Pokémon's HP falls below 33%.</p>
+              </div>
+              <div class="detail-panel__ability-card">
+                <strong>Chlorophyll</strong>
+                <span class="detail-panel__hidden-badge">Hidden</span>
+                <p>Boosts the Pokémon's Speed stat in harsh sunlight conditions.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside> }`
+})
+export class SpecimenPanelComponent {
+    @Input() pokemon: Pokemon | null = null;
+    @Output() close = new EventEmitter < void > ();
+    typeClass = typeClass;
+}
