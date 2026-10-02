@@ -22,6 +22,7 @@
     "@angular/build": "^21.2.2",
     "@angular/cli": "^21.2.2",
     "@angular/compiler-cli": "^21.2.0",
+    "json-graphql-server": "^3.3.2",
     "typescript": "~5.9.2"
   }
 }

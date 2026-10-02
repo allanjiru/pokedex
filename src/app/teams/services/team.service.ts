@@ -10,7 +10,7 @@ interface GraphQLTeam {
 }
 
 interface GetTeamsData {
-  readonly teams: readonly GraphQLTeam[];
+  readonly allTeams: readonly GraphQLTeam[];
 }
 
 interface CreateTeamData {
@@ -35,7 +35,7 @@ export class TeamService {
   getTeams(): Observable<Team[]> {
     const query = `
       query GetTeams {
-        teams {
+        allTeams {
           id
           name
           pokemon_ids
@@ -43,25 +43,29 @@ export class TeamService {
       }
     `;
 
-    return this.#http.post<GraphQLResponse<GetTeamsData>>(this.#graphqlUrl, { query }).pipe(
-      map(response => {
-        if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0].message);
-        }
+    return this.#http
+      .post<GraphQLResponse<GetTeamsData>>(this.#graphqlUrl, { query })
+      .pipe(
+        map(response => {
+          if (response.errors && response.errors.length > 0) {
+            throw new Error(response.errors[0].message);
+          }
 
-        if (!response.data) {
-          throw new Error('Failed to load teams: missing data response from server');
-        }
+          if (!response.data) {
+            throw new Error(
+              'Failed to load teams: missing data response from server'
+            );
+          }
 
-        return response.data.teams.map(t => ({
-          id: String(t.id),
-          name: t.name,
-          pokemonIds: t.pokemon_ids
-        }));
-      })
-    );
+          return response.data.allTeams.map(team => ({
+            id: String(team.id),
+            name: team.name,
+            pokemonIds: team.pokemon_ids
+          }));
+        })
+      );
   }
-
+  
   /**
    * Creates a new team via GraphQL mutation.
    */
