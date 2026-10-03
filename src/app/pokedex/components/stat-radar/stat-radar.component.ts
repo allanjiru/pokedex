@@ -1,55 +1,163 @@
 import {
-    Component,
-    Input
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  OnDestroy,
+  ViewChild,
+  effect,
+  input
 } from '@angular/core';
-import {
-    Pokemon
-} from '../../models/pokemon.model';
+import Chart from 'chart.js/auto';
+import { ChartConfiguration, ChartType } from 'chart.js';
+import { PokemonStats } from '../../models/pokemon.model';
+
 @Component({
-    selector: 'app-stat-radar',
-    standalone: true,
-    template: `
-      <div class="stat-radar">
-        <div class="stat-radar__header">
-          <span>Base Stats (Max 255)</span>
-          <span class="stat-radar__bst-badge">BST: {{ bst }}</span>
-        </div>
-        <svg class="stat-radar__svg" viewBox="0 0 240 220">
-          <polygon class="stat-radar__grid-line" points="120,35 184.9,72.5 184.9,147.5 120,185 55.1,147.5 55.1,72.5"/>
-          <polygon class="stat-radar__grid-line" points="120,53.75 168.7,81.87 168.7,138.12 120,166.25 71.3,138.12 71.3,81.87"/>
-          <polygon class="stat-radar__grid-line" points="120,72.5 152.5,91.25 152.5,128.75 120,147.5 87.5,128.75 87.5,91.25"/>
-          <line class="stat-radar__axis-line" x1="120" x2="120" y1="110" y2="35"/><line class="stat-radar__axis-line" x1="120" x2="184.9" y1="110" y2="72.5"/>
-          <line class="stat-radar__axis-line" x1="120" x2="184.9" y1="110" y2="147.5"/><line class="stat-radar__axis-line" x1="120" x2="120" y1="110" y2="185"/>
-          <line class="stat-radar__axis-line" x1="120" x2="55.1" y1="110" y2="147.5"/><line class="stat-radar__axis-line" x1="120" x2="55.1" y1="110" y2="72.5"/>
-          <polygon class="stat-radar__polygon" [attr.points]="points"/>
-          
-          <text class="stat-radar__label" x="120" y="20">HP {{ pokemon.stats.hp }}</text>
-          <text class="stat-radar__label" x="206" y="72">ATK {{ pokemon.stats.attack }}</text>
-          <text class="stat-radar__label" x="206" y="152">DEF {{ pokemon.stats.defense }}</text>
-          <text class="stat-radar__label" x="120" y="204">SPA {{ pokemon.stats.specialAttack }}</text>
-          <text class="stat-radar__label" x="32" y="152">SPD {{ pokemon.stats.specialDefense }}</text>
-          <text class="stat-radar__label" x="32" y="72">SPE {{ pokemon.stats.speed }}</text>
-        </svg>
-      </div>
-    `
+  selector: 'app-stat-radar',
+  standalone: true,
+  template: `
+    <div class="stat-radar">
+      <canvas
+        #radarCanvas
+        aria-label="Pokémon base stats radar chart"
+        role="img"
+      ></canvas>
+    </div>
+  `,
+  styles: [`
+    .stat-radar {
+      position: relative;
+      width: 100%;
+      height: 250px;
+    }
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class StatRadarComponent {
-    @Input({
-        required: true
-    }) pokemon!: Pokemon;
-    get bst(): number {
-        return Object.values(this.pokemon.stats).reduce((sum, stat) => sum + stat, 0);
+export class StatRadarComponent implements AfterViewInit, OnDestroy {
+  readonly stats = input<PokemonStats | null>(null);
+
+  @ViewChild('radarCanvas')
+  private readonly radarCanvas?: ElementRef<HTMLCanvasElement>;
+
+  private chart: Chart | null = null;
+
+  constructor() {
+    // React to signal updates after the chart is already initialized
+    effect(() => {
+      const currentStats = this.stats();
+      if (this.chart) {
+        this.chart.data.datasets[0].data = this.getStatValues(currentStats);
+        this.chart.update();
+      }
+    });
+  }
+
+  ngAfterViewInit(): void {
+    // Small timeout ensures the DOM layout pass is complete and canvas dimensions are painted
+    setTimeout(() => {
+      this.createChart();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroyChart();
+  }
+
+  private createChart(): void {
+    const canvas = this.radarCanvas?.nativeElement;
+    if (!canvas || this.chart) {
+      return;
     }
-    get points(): string {
-        const values = Object.values(this.pokemon.stats);
-        const center = {
-            x: 120,
-            y: 110
-        };
-        return values.map((value, index) => {
-            const angle = -Math.PI / 2 + index * Math.PI / 3;
-            const radius = (value / 255) * 75;
-            return `${center.x + Math.cos(angle) * radius},${center.y + Math.sin(angle) * radius}`;
-        }).join(' ');
+
+    const stats = this.stats();
+    this.chart = new Chart(canvas, this.getChartConfiguration(stats));
+  }
+
+  private destroyChart(): void {
+    if (this.chart) {
+      this.chart.destroy();
+      this.chart = null;
     }
+  }
+
+  private getChartConfiguration(
+    stats: PokemonStats | null
+  ): ChartConfiguration<ChartType> {
+    return {
+      type: 'radar',
+      data: {
+        labels: ['HP', 'Attack', 'Defense', 'Sp. Atk', 'Sp. Def', 'Speed'],
+        datasets: [
+          {
+            label: 'Base Stats',
+            data: this.getStatValues(stats),
+            backgroundColor: 'rgba(59, 130, 246, 0.25)',
+            borderColor: '#3b82f6',
+            borderWidth: 2,
+            pointBackgroundColor: '#3b82f6',
+            pointBorderColor: '#ffffff',
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            fill: true
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 400
+        },
+        scales: {
+          r: {
+            beginAtZero: true,
+            min: 0,
+            max: 150,
+            ticks: {
+              stepSize: 30,
+              display: true,
+              color: '#94a3b8',
+              showLabelBackdrop: false
+            },
+            pointLabels: {
+              color: '#f8fafc',
+              font: {
+                size: 11,
+                weight: 500
+              }
+            },
+            grid: {
+              color: 'rgba(255, 255, 255, 0.15)'
+            },
+            angleLines: {
+              color: 'rgba(255, 255, 255, 0.15)'
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            enabled: true
+          }
+        }
+      }
+    };
+  }
+
+  private getStatValues(stats: PokemonStats | null): number[] {
+    if (!stats) {
+      return [0, 0, 0, 0, 0, 0];
+    }
+
+    return [
+      stats.hp,
+      stats.attack,
+      stats.defense,
+      stats.specialAttack,
+      stats.specialDefense,
+      stats.speed
+    ];
+  }
 }

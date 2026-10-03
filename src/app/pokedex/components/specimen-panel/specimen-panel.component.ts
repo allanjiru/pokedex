@@ -2,11 +2,12 @@ import { Component, ChangeDetectionStrategy, input, output } from '@angular/core
 import { CommonModule } from '@angular/common';
 import { Pokemon } from '../../models/pokemon.model';
 import { DetailResourceState } from '../../state/pokemon.store';
+import { StatRadarComponent } from '../stat-radar/stat-radar.component';
 
 @Component({
   selector: 'app-specimen-panel',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, StatRadarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <aside class="detail-panel">
@@ -42,7 +43,7 @@ import { DetailResourceState } from '../../state/pokemon.store';
             </div>
 
             @if (poke.abilities && poke.abilities.length > 0) {
-              <div class="detail-panel__section">
+              <div class="detail-panel__stats">
                 <h4>Abilities</h4>
                 <ul>
                   @for (ability of poke.abilities; track ability.name) {
@@ -52,17 +53,8 @@ import { DetailResourceState } from '../../state/pokemon.store';
               </div>
             }
 
-            <div class="detail-panel__section">
-              <h4>Base Stats</h4>
-              <ul class="detail-panel__stats">
-                <li><span>HP:</span> {{ poke.stats.hp }}</li>
-                <li><span>Attack:</span> {{ poke.stats.attack }}</li>
-                <li><span>Defense:</span> {{ poke.stats.defense }}</li>
-                <li><span>Sp. Atk:</span> {{ poke.stats.specialAttack }}</li>
-                <li><span>Sp. Def:</span> {{ poke.stats.specialDefense }}</li>
-                <li><span>Speed:</span> {{ poke.stats.speed }}</li>
-              </ul>
-            </div>
+            <app-stat-radar [stats]="poke.stats" />
+
           </div>
         } @else {
           <div class="pokemon-state-container">
